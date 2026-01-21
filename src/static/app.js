@@ -20,9 +20,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const spotsLeft = details.max_participants - details.participants.length;
 
-        const participantsList = details.participants.length > 0
-          ? details.participants.map(p => `<li>${p}</li>`).join('')
-          : '<li><em>No participants yet</em></li>';
+          const participantsList = details.participants.length > 0
+            ? details.participants.map(p => `
+                <span class="participant-item">
+                  <span class="participant-name">${p}</span>
+                  <span class="delete-icon" title="Remove" data-activity="${name}" data-participant="${p}">&#128465;</span>
+                </span>
+              `).join('')
+            : '<span class="participant-item"><em>No participants yet</em></span>';
 
         activityCard.innerHTML = `
           <h4>${name}</h4>
@@ -49,6 +54,38 @@ document.addEventListener("DOMContentLoaded", () => {
       activitiesList.innerHTML = "<p>Failed to load activities. Please try again later.</p>";
       console.error("Error fetching activities:", error);
     }
+        // Add event listeners for delete icons
+        document.querySelectorAll('.delete-icon').forEach(icon => {
+          icon.addEventListener('click', async (e) => {
+            const activity = icon.getAttribute('data-activity');
+            const participant = icon.getAttribute('data-participant');
+            try {
+              const response = await fetch(`/activities/${encodeURIComponent(activity)}/unregister?email=${encodeURIComponent(participant)}`, {
+                method: 'POST',
+              });
+              const result = await response.json();
+              if (response.ok) {
+                messageDiv.textContent = result.message || 'Participant removed.';
+                messageDiv.className = 'success';
+                fetchActivities();
+              } else {
+                messageDiv.textContent = result.detail || 'Failed to remove participant.';
+                messageDiv.className = 'error';
+              }
+              messageDiv.classList.remove('hidden');
+              setTimeout(() => {
+                messageDiv.classList.add('hidden');
+              }, 5000);
+            } catch (error) {
+              messageDiv.textContent = 'Error removing participant.';
+              messageDiv.className = 'error';
+              messageDiv.classList.remove('hidden');
+              setTimeout(() => {
+                messageDiv.classList.add('hidden');
+              }, 5000);
+            }
+          });
+        });
   }
 
   // Handle form submission
@@ -72,6 +109,7 @@ document.addEventListener("DOMContentLoaded", () => {
         messageDiv.textContent = result.message;
         messageDiv.className = "success";
         signupForm.reset();
+        fetchActivities(); // Refresh activities list after successful signup
       } else {
         messageDiv.textContent = result.detail || "An error occurred";
         messageDiv.className = "error";
